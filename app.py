@@ -5,18 +5,23 @@ from torchvision import models, transforms
 from PIL import Image
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 
-# Page config
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(page_title="Lung Disease Detection AI", layout="centered")
 
 st.title("🫁 AI-Based Early Lung Disease Detection")
 st.write("Upload a Chest X-ray image to detect Pneumonia.")
 
-# Device
+# =========================
+# DEVICE
+# =========================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load model
+# =========================
+# LOAD MODEL
+# =========================
 @st.cache_resource
 def load_model():
     model = models.efficientnet_b0(weights=None)
@@ -28,7 +33,9 @@ def load_model():
 
 model = load_model()
 
-# Transform
+# =========================
+# TRANSFORM
+# =========================
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -36,36 +43,56 @@ transform = transforms.Compose([
                          [0.229, 0.224, 0.225])
 ])
 
-# File uploader
+# =========================
+# FILE UPLOAD
+# =========================
 uploaded_file = st.file_uploader("Upload X-ray Image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
+
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded X-ray", use_column_width=True)
 
     input_tensor = transform(image).unsqueeze(0).to(device)
 
-    # Grad-CAM hooks
+    # =========================
+    # GRAD-CAM HOOKS
+    # =========================
     gradients = []
     activations = []
-
-    def backward_hook(module, grad_in, grad_out):
-        gradients.append(grad_out[0])
 
     def forward_hook(module, input, output):
         activations.append(output)
 
+    def backward_hook(module, grad_in, grad_out):
+        gradients.append(grad_out[0])
+
     target_layer = model.features[-1]
     target_layer.register_forward_hook(forward_hook)
-    target_layer.register_backward_hook(backward_hook)
+    target_layer.register_full_backward_hook(backward_hook)
 
-    # Forward
+    # =========================
+    # FORWARD PASS
+    # =========================
     output = model(input_tensor)
     probs = F.softmax(output, dim=1)
-    pred_class = torch.argmax(probs).item()
-    confidence = probs[0][pred_class].item()
 
-    # Backward
+    pneumonia_prob = probs[0][1].item()
+    normal_prob = probs[0][0].item()
+
+    # Adjustable threshold
+    threshold = 0.60
+
+    if pneumonia_prob > threshold:
+        pred_class = 1
+        confidence = pneumonia_prob
+    else:
+        pred_class = 0
+        confidence = normal_prob
+
+    # =========================
+    # BACKWARD PASS FOR GRAD-CAM
+    # =========================
     model.zero_grad()
     output[0, pred_class].backward()
 
@@ -76,24 +103,39 @@ if uploaded_file is not None:
         activation[:, i, :, :] *= pooled_gradients[i]
 
     heatmap = torch.mean(activation, dim=1).squeeze()
-    heatmap = np.maximum(heatmap.cpu(), 0)
-    heatmap /= torch.max(heatmap)
+    heatmap = heatmap.cpu().numpy()
 
-    heatmap = cv2.resize(heatmap.numpy(), (224, 224))
+    heatmap = np.maximum(heatmap, 0)
+
+    if np.max(heatmap) != 0:
+        heatmap /= np.max(heatmap)
+
+    heatmap = cv2.resize(heatmap, (224, 224))
     heatmap = np.uint8(255 * heatmap)
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
     img = np.array(image.resize((224, 224)))
-    superimposed_img = heatmap * 0.4 + img
-    superimposed_img = np.uint8(superimposed_img)
+    superimposed_img = cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
 
-    # Results
+    # =========================
+    # DISPLAY RESULTS
+    # =========================
     st.subheader("Prediction Result")
 
     if pred_class == 1:
-        st.error(f"⚠ Pneumonia Detected (Confidence: {confidence*100:.2f}%)")
+        st.error(f"⚠ Pneumonia Detected")
+        st.write(f"Confidence: **{confidence*100:.2f}%**")
     else:
-        st.success(f"✅ Normal (Confidence: {confidence*100:.2f}%)")
+        st.success(f"✅ Normal")
+        st.write(f"Confidence: **{confidence*100:.2f}%**")
+
+    # Borderline detection
+    if 0.40 < pneumonia_prob < 0.60:
+        st.warning("⚠ Borderline prediction. Image may require clinical review.")
+
+    # Low confidence detection (possible out-of-distribution)
+    if confidence < 0.55:
+        st.warning("⚠ Low confidence prediction. Image may be out-of-distribution.")
 
     st.image(superimposed_img, caption="Grad-CAM Heatmap", use_column_width=True)
 
