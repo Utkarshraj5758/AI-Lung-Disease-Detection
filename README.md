@@ -23,21 +23,25 @@ EfficientNet-B0 transfer learning and Grad-CAM explanations.
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install -e .[dev]
 ```
 
 On Windows and macOS this installs CPU-only PyTorch. For a CUDA build, install
-`torch` and `torchvision` from the PyTorch index first, then the rest:
+`torch` and `torchvision` from the PyTorch index first, then the package:
 
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-pip install -r requirements.txt
+pip install -e .[dev]
 ```
 
 ## Usage
 
 ```bash
-python train.py              # train and save lung_model.pth
-streamlit run app.py         # launch the web app
-python gradcam.py            # Grad-CAM for a single image
+lungxray predict image.png --weights artifacts/best.pt --cam overlay.png   # add --json for JSON
+python scripts/check_dataset.py   # image counts per split
+pytest -q                         # tests (no dataset or GPU needed)
 ```
+
+`lungxray predict` needs a model bundle; `python scripts/make_dummy_bundle.py` writes a
+random-init one for smoke tests. The root `train.py` and `app.py` are the legacy scripts
+(they use `lung_model.pth`) and are replaced by the package in later phases.

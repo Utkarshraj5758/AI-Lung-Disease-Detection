@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lungxray"
+dynamic = ["version"]
+description = "Pneumonia vs normal chest X-ray classification with Grad-CAM (research use only)"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Utkarsh Raj" }]
+requires-python = ">=3.10"
+# Keep in sync with requirements.txt (used by Hugging Face Spaces).
+dependencies = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "numpy",
+    "pillow",
+    "opencv-python-headless",
+    "scikit-learn",
+    "matplotlib",
+    "streamlit>=1.40",
+    "pydicom>=3.0",
+    "pyyaml",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff", "httpx"]
+api = ["fastapi", "uvicorn[standard]", "python-multipart"]
+
+[project.scripts]
+lungxray = "lungxray.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "lungxray.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# app.py/train.py: legacy root scripts, replaced by src/lungxray in Phase 3 (train) and
+# Phase 4 (app). PLAN.md: its code snippets are aligned by hand.
+extend-exclude = ["app.py", "train.py", "PLAN.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

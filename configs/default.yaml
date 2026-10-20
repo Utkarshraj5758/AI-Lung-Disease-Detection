@@ -1,0 +1,39 @@
+# Every tunable lives here. Override from the command line with
+#   --set section.key=value   (e.g. --set train.epochs_stage2=5)
+# Validation uses the existing dataset/val folder (see PLAN.md, Phase 3 decision).
+
+paths:
+  data_dir: dataset          # expects train/, val/, test/ each with NORMAL/ and PNEUMONIA/
+  artifacts_dir: artifacts   # bundles (best.pt) and other generated files
+  runs_dir: runs             # per-run logs (CSV, TensorBoard)
+  reports_dir: reports       # evaluation outputs (metrics.json, plots)
+
+data:
+  image_size: 224            # model input (center crop) size
+  resize_size: 256           # shorter side is resized to this before the center crop
+  batch_size: 32
+  num_workers: 4
+  hflip: false               # horizontal flip augmentation; off because anatomy is asymmetric
+
+model:
+  name: efficientnet_b0
+  pretrained: true           # ImageNet weights
+
+train:
+  seed: 42
+  imbalance: weighted_loss   # weighted_loss | sampler (never both)
+  epochs_stage1: 3           # head only, frozen backbone
+  epochs_stage2: 15          # last blocks + head
+  unfreeze_blocks: 3         # feature blocks unfrozen in stage 2
+  lr_head: 1.0e-3
+  lr_backbone: 1.0e-4
+  weight_decay: 1.0e-4
+  warmup_epochs: 1
+  grad_clip: 1.0
+  amp: true                  # mixed precision, CUDA only
+  patience: 5                # early stopping on val AUROC
+
+eval:
+  target_sensitivity: 0.95   # threshold = highest one reaching this sensitivity on val
+  ece_bins: 15
+  bootstrap_resamples: 1000
