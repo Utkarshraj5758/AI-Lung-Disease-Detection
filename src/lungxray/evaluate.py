@@ -381,11 +381,13 @@ def plot_pr(y: np.ndarray, probs: np.ndarray, point: dict[str, float], out_dir: 
 
 def _operating_point(ax, x: float, y: float, label: str) -> None:
     ax.scatter([x], [y], s=64, color=SERIES_2, edgecolors=SURFACE, linewidths=2, zorder=3)
+    near_right = x > 0.7  # keep the label inside the axes
     ax.annotate(
         f"{label}\n({x:.2f}, {y:.2f})",
         (x, y),
-        xytext=(10, -26),
+        xytext=(-10 if near_right else 10, -26),
         textcoords="offset points",
+        ha="right" if near_right else "left",
         color=TEXT_2,
         fontsize=8,
     )
