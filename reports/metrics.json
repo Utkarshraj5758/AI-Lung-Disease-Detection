@@ -1,0 +1,218 @@
+{
+  "split": "test",
+  "fast_dev_run": false,
+  "n": {
+    "total": 587,
+    "NORMAL": 159,
+    "PNEUMONIA": 428
+  },
+  "threshold": 0.9376838793050314,
+  "temperature": 2.404844400319732,
+  "decision_rule": "PNEUMONIA if temperature-scaled P(pneumonia) >= threshold; threshold and temperature were fitted on the validation split",
+  "metrics": {
+    "accuracy": {
+      "value": 0.9267461669505963,
+      "ci95": [
+        0.9045996592844975,
+        0.9471890971039182
+      ]
+    },
+    "auroc": {
+      "value": 0.9879356962322929,
+      "ci95": [
+        0.9755959155140983,
+        0.9958196643629896
+      ]
+    },
+    "auprc": {
+      "value": 0.9942956324074969,
+      "ci95": [
+        0.9871443488367119,
+        0.9984020700997838
+      ]
+    },
+    "sensitivity": {
+      "value": 0.9135514018691588,
+      "ci95": [
+        0.8875547214431062,
+        0.9401010280042539
+      ]
+    },
+    "specificity": {
+      "value": 0.9622641509433962,
+      "ci95": [
+        0.9266666666666666,
+        0.9876580849141824
+      ]
+    },
+    "ppv": {
+      "value": 0.9848866498740554,
+      "ci95": [
+        0.9708666476299258,
+        0.9950372208436724
+      ]
+    },
+    "npv": {
+      "value": 0.8052631578947368,
+      "ci95": [
+        0.7487424031150517,
+        0.8612960068420431
+      ]
+    },
+    "f1": {
+      "value": 0.9478787878787879,
+      "ci95": [
+        0.9315403422982885,
+        0.9622641509433962
+      ]
+    },
+    "ece": {
+      "value": 0.04712018871178283,
+      "ci95": [
+        0.03808839050625755,
+        0.06523636988340292
+      ]
+    }
+  },
+  "confusion_matrix": {
+    "tn": 153,
+    "fp": 6,
+    "fn": 37,
+    "tp": 391
+  },
+  "ece_uncalibrated": 0.041485445331781584,
+  "ece_definition": "15 equal-width bins on P(pneumonia)",
+  "bootstrap": {
+    "resamples": 1000,
+    "seed": 42,
+    "level": 0.95,
+    "method": "percentile; test cases resampled with replacement"
+  },
+  "validation": {
+    "n": 585,
+    "n_positive": 427,
+    "temperature": 2.404844400319732,
+    "nll_before": 0.1918896299688878,
+    "nll_after": 0.13056079896501502,
+    "ece_before": 0.04573116473927799,
+    "ece_after": 0.05220467454332812,
+    "target_sensitivity": 0.95,
+    "threshold": 0.9376838793050314,
+    "sensitivity": 0.9508196721311475,
+    "specificity": 0.9683544303797469,
+    "auroc": 0.9935523078291286,
+    "youden_threshold": 0.9021093382650716
+  },
+  "model": {
+    "bundle": "artifacts\\best.pt",
+    "model_name": "efficientnet_b0",
+    "git_commit": "e6f16059ff53c9ed42ade5cb464633247e5d6b69",
+    "created_at": "2026-10-20T22:06:02+00:00",
+    "dataset_fingerprint": "2f402612cb0c6f1d"
+  },
+  "evaluated_at": "2026-10-20T22:10:47+00:00",
+  "evaluation_git_commit": "d43fe7d08e618961d95b2aa8cd2f160678343943",
+  "dataset_fingerprint": "2f402612cb0c6f1d",
+  "patient_overlap": {
+    "train/val": {
+      "shared_patients": 308,
+      "train_patients": 2687,
+      "val_patients": 528,
+      "val_images_from_shared_patients": 357,
+      "val_images": 585
+    },
+    "train/test": {
+      "shared_patients": 299,
+      "train_patients": 2687,
+      "test_patients": 527,
+      "test_images_from_shared_patients": 347,
+      "test_images": 587
+    },
+    "val/test": {
+      "shared_patients": 101,
+      "val_patients": 528,
+      "test_patients": 527,
+      "test_images_from_shared_patients": 126,
+      "test_images": 587
+    }
+  },
+  "test_unseen_patients": {
+    "description": "test images whose patient id does not appear in the train split",
+    "n": {
+      "total": 240,
+      "NORMAL": 146,
+      "PNEUMONIA": 94
+    },
+    "metrics": {
+      "accuracy": {
+        "value": 0.9125,
+        "ci95": [
+          0.875,
+          0.9458333333333333
+        ]
+      },
+      "auroc": {
+        "value": 0.9793791897406005,
+        "ci95": [
+          0.9633149117483272,
+          0.9922480285818256
+        ]
+      },
+      "auprc": {
+        "value": 0.9634177312813342,
+        "ci95": [
+          0.9254732877002323,
+          0.9885088228902308
+        ]
+      },
+      "sensitivity": {
+        "value": 0.8404255319148937,
+        "ci95": [
+          0.7586112163698371,
+          0.9100028089887641
+        ]
+      },
+      "specificity": {
+        "value": 0.958904109589041,
+        "ci95": [
+          0.9230769230769231,
+          0.9869302266361091
+        ]
+      },
+      "ppv": {
+        "value": 0.9294117647058824,
+        "ci95": [
+          0.8686729936729938,
+          0.978494623655914
+        ]
+      },
+      "npv": {
+        "value": 0.9032258064516129,
+        "ci95": [
+          0.8535031847133758,
+          0.9447852760736196
+        ]
+      },
+      "f1": {
+        "value": 0.88268156424581,
+        "ci95": [
+          0.8287099744549398,
+          0.9278632189735789
+        ]
+      },
+      "ece": {
+        "value": 0.12163355981950896,
+        "ci95": [
+          0.09742029074444285,
+          0.15829319332611785
+        ]
+      }
+    },
+    "confusion_matrix": {
+      "tn": 140,
+      "fp": 6,
+      "fn": 15,
+      "tp": 79
+    }
+  }
+}
