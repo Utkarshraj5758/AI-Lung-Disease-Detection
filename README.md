@@ -1,30 +1,43 @@
-<<<<<<< HEAD
-🫁 AI-Based Early Lung Disease Detection
-🚀 Overview
-
-This project implements a deep learning system for early detection of Pneumonia from Chest X-ray images using EfficientNet-B0 and Grad-CAM explainability.
-
-📊 Model Performance
-
-Test Accuracy: 94–95%
-
-Pneumonia Recall: 95%
-
-False Negatives: 21 / 428
-
-Explainability using Grad-CAM
-
-🧠 Features
-
-Transfer Learning (EfficientNet-B0)
-
-Medical Image Classification
-
-Confusion Matrix & Evaluation Metrics
-
-Grad-CAM Visualization
-
-Streamlit Web Application Interface
-=======
 # AI-Lung-Disease-Detection
->>>>>>> d520d22ec973aae48717f4e1cc0679b3017f10f0
+
+Deep learning system for detecting pneumonia in chest X-ray images, using
+EfficientNet-B0 transfer learning and Grad-CAM explanations.
+
+> **Research and education only.** Not a medical device and not validated for clinical use.
+
+## Model performance
+
+| Metric | Value |
+| --- | --- |
+| Test accuracy | TBD (run `make evaluate`) |
+| Pneumonia recall | TBD (run `make evaluate`) |
+| False negatives | TBD (run `make evaluate`) |
+
+## Features
+
+- Transfer learning (EfficientNet-B0)
+- Confusion matrix and evaluation metrics
+- Grad-CAM visualization
+- Streamlit web application
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+On Windows and macOS this installs CPU-only PyTorch. For a CUDA build, install
+`torch` and `torchvision` from the PyTorch index first, then the rest:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+pip install -r requirements.txt
+```
+
+## Usage
+
+```bash
+python train.py              # train and save lung_model.pth
+streamlit run app.py         # launch the web app
+python gradcam.py            # Grad-CAM for a single image
+```

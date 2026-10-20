@@ -31,7 +31,7 @@ symptom_diff_breathing = st.sidebar.checkbox("Difficulty Breathing")
 
 st.sidebar.divider()
 st.sidebar.header("Model Settings")
-diagnostic_threshold = st.sidebar.slider("Pneumonia Threshold", min_value=0.10, max_value=0.90, value=0.60, step=0.05, help="Lower threshold reduces false negatives.")
+diagnostic_threshold = st.sidebar.slider("Pneumonia Threshold", min_value=0.10, max_value=0.90, value=0.50, step=0.05, help="Lower threshold reduces false negatives.")
 
 # =========================
 # DEVICE & MODEL
@@ -139,31 +139,28 @@ if uploaded_file is not None:
             handle_forward = target_layer.register_forward_hook(forward_hook)
             handle_backward = target_layer.register_full_backward_hook(backward_hook)
 
-            # =========================
-            # FORWARD PASS & CALIBRATION
-            # =========================
-            output = model(input_tensor)
-            
-            # Temperature scaling for confidence calibration
-            TEMPERATURE = 1.5
-            scaled_logits = output / TEMPERATURE
-            probs = F.softmax(scaled_logits, dim=1)
+            # The model is shared across sessions via st.cache_resource, so the
+            # hooks must be removed even if the forward/backward pass fails.
+            try:
+                # =========================
+                # FORWARD PASS
+                # =========================
+                output = model(input_tensor)
 
-            pneumonia_prob = probs[0][1].item()
-            normal_prob = probs[0][0].item()
+                # Raw softmax: no temperature has been fitted yet.
+                probs = F.softmax(output, dim=1)
+                pneumonia_prob = probs[0][1].item()
 
-            if pneumonia_prob > diagnostic_threshold:
-                pred_class = 1
-                confidence = pneumonia_prob
-            else:
-                pred_class = 0
-                confidence = normal_prob
+                pred_class = 1 if pneumonia_prob > diagnostic_threshold else 0
 
-            # =========================
-            # BACKWARD PASS FOR GRAD-CAM
-            # =========================
-            model.zero_grad()
-            output[0, pred_class].backward()
+                # =========================
+                # BACKWARD PASS FOR GRAD-CAM
+                # =========================
+                model.zero_grad()
+                output[0, pred_class].backward()
+            finally:
+                handle_forward.remove()
+                handle_backward.remove()
 
             pooled_gradients = torch.mean(gradients[0], dim=[0, 2, 3])
             activation = activations[0].detach()
@@ -181,10 +178,8 @@ if uploaded_file is not None:
             heatmap = cv2.resize(heatmap, (224, 224))
             heatmap = np.uint8(255 * heatmap)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-
-            # Clean up hooks
-            handle_forward.remove()
-            handle_backward.remove()
+            # applyColorMap returns BGR; the PIL image it is blended with is RGB.
+            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
             # =========================
             # DISPLAY RESULTS
@@ -194,13 +189,12 @@ if uploaded_file is not None:
 
                 if pred_class == 1:
                     st.error(f"⚠ Pneumonia Detected")
-                    st.write(f"Confidence: **{confidence*100:.2f}%**")
                 else:
                     st.success(f"✅ Normal")
-                    st.write(f"Confidence: **{confidence*100:.2f}%**")
+                st.write(f"P(pneumonia): **{pneumonia_prob*100:.2f}%** (model probability, uncalibrated)")
 
-                if 0.40 < pneumonia_prob < 0.60:
-                    st.warning("⚠ Borderline prediction. Image may require clinical review.")
+                if abs(pneumonia_prob - diagnostic_threshold) < 0.10:
+                    st.warning("⚠ Borderline prediction: P(pneumonia) is within 0.10 of the threshold. Image may require clinical review.")
 
                 # Grad-CAM Opacity Slider
                 st.subheader("Grad-CAM Explainability")
@@ -238,7 +232,7 @@ if uploaded_file is not None:
             **AI Imaging Findings:**
             - The provided Chest X-ray was analyzed using EfficientNet-B0.
             - Model Output: **{'Pneumonia' if pred_class == 1 else 'Normal'}**
-            - Confidence Probability (Calibrated): **{confidence*100:.1f}%**
+            - Model probability (uncalibrated), P(pneumonia): **{pneumonia_prob*100:.1f}%**
             
             **Impression:**
             {finding_text}

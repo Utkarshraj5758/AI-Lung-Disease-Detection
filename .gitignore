@@ -2,15 +2,25 @@
 venv/
 .venv/
 
+# Editor
+.vscode/
+
 # Dataset
 dataset/
 
-# Model weights
+# Model weights and training outputs
 *.pth
+*.pt
+*.safetensors
+runs/
+artifacts/
 
-# Python cache
+# Python cache and tooling
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
 
 # OS files
 .DS_Store

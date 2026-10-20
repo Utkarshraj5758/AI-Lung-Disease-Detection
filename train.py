@@ -46,8 +46,9 @@ test_loader = DataLoader(test_dataset, batch_size=32)
 # =========================
 # CLASS IMBALANCE FIX
 # =========================
-targets = [label for _, label in train_dataset]
-class_counts = Counter(targets)
+# Use the labels ImageFolder already indexed; iterating the dataset would load
+# and augment every image just to read its label.
+class_counts = Counter(train_dataset.targets)
 
 print("Class Distribution:", class_counts)
 
@@ -56,7 +57,7 @@ weights = torch.tensor([
     1.0 / class_counts[1]
 ], dtype=torch.float).to(device)
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(weight=weights)
 
 # =========================
 # MODEL
