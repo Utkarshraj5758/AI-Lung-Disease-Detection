@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import datetime as dt
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 from torch import nn
 from torchvision import models
@@ -137,6 +138,24 @@ def load_bundle(
     model.load_state_dict(payload["state_dict"])
     model.to(device).eval()
     return model, meta
+
+
+def resolve_device(device: str | torch.device | None = None) -> torch.device:
+    """The requested device, or CUDA when available, else CPU."""
+    return torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+
+
+def collect_logits(
+    model: nn.Module, loader: Iterable, device: torch.device
+) -> tuple[np.ndarray, np.ndarray]:
+    """Eval-mode float32 logits ``(n, num_classes)`` and labels ``(n,)`` for a whole loader."""
+    model.eval()
+    logits, labels = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            logits.append(model(x.to(device, non_blocking=True)).float().cpu())
+            labels.append(torch.as_tensor(y))
+    return torch.cat(logits).numpy(), torch.cat(labels).numpy()
 
 
 def git_commit() -> str | None:

@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "ruff", "httpx"]
 api = ["fastapi", "uvicorn[standard]", "python-multipart"]
+train = ["tensorboard"]
 
 [project.scripts]
 lungxray = "lungxray.cli:main"

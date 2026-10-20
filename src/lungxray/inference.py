@@ -16,7 +16,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from lungxray.data import build_eval_transform, build_view_transform, to_rgb
 from lungxray.dicom import dicom_to_pil
 from lungxray.gradcam import grad_cam
-from lungxray.model import load_bundle
+from lungxray.model import load_bundle, resolve_device
 
 DEFAULT_BORDERLINE_MARGIN = 0.10
 _DICOM_SUFFIXES = {".dcm", ".dicom"}
@@ -75,7 +75,7 @@ class Predictor:
         device: str | torch.device | None = None,
         borderline_margin: float = DEFAULT_BORDERLINE_MARGIN,
     ) -> None:
-        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.device = resolve_device(device)
         self.model, self.meta = load_bundle(bundle_path, self.device)
         self.class_names: list[str] = list(self.meta["class_names"])
         if len(self.class_names) != 2:

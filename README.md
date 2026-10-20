@@ -37,11 +37,15 @@ pip install -e .[dev]
 ## Usage
 
 ```bash
+python scripts/check_dataset.py     # counts, image sizes, patient overlap between splits
+python -m lungxray.train            # two-stage fine-tune + calibration -> artifacts/best.pt
+python -m lungxray.evaluate         # test metrics with 95% CIs and plots -> reports/
 lungxray predict image.png --weights artifacts/best.pt --cam overlay.png   # add --json for JSON
-python scripts/check_dataset.py   # image counts per split
-pytest -q                         # tests (no dataset or GPU needed)
+pytest -q                           # tests (no dataset or GPU needed)
 ```
 
-`lungxray predict` needs a model bundle; `python scripts/make_dummy_bundle.py` writes a
-random-init one for smoke tests. The root `train.py` and `app.py` are the legacy scripts
-(they use `lung_model.pth`) and are replaced by the package in later phases.
+Settings live in `configs/default.yaml`; override any of them with
+`--set section.key=value`. `--fast-dev-run` runs train/evaluate on synthetic data in
+seconds. Install the `[train]` extra for TensorBoard logs. `python scripts/make_dummy_bundle.py`
+writes a random-init bundle for smoke tests. The root `app.py` is the legacy app (it uses
+`lung_model.pth`) and is replaced in a later phase.
