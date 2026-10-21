@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
@@ -6,6 +8,7 @@ from lungxray.model import (
     REQUIRED_META_KEYS,
     build_meta,
     build_model,
+    bundle_source,
     load_bundle,
     resolve_bundle,
     save_bundle,
@@ -142,3 +145,20 @@ def test_resolve_bundle_reports_download_failures(monkeypatch, tmp_path):
     monkeypatch.setattr(huggingface_hub, "hf_hub_download", offline)
     with pytest.raises(FileNotFoundError, match="user/repo"):
         resolve_bundle(tmp_path / "missing.pt", "user/repo")
+
+
+def test_bundle_source_precedence(monkeypatch, tmp_path):
+    from lungxray.config import load_config
+
+    config = load_config(Path(__file__).resolve().parents[1] / "configs" / "default.yaml")
+    for name in ("LUNGXRAY_WEIGHTS", "LUNGXRAY_HF_REPO", "LUNGXRAY_HF_FILENAME"):
+        monkeypatch.delenv(name, raising=False)
+    local, repo, filename = bundle_source(config, root=tmp_path)
+    assert Path(local) == tmp_path / config.paths.artifacts_dir / "best.pt"
+    assert (repo, filename) == (config.app.hf_repo_id, config.app.hf_filename)
+
+    monkeypatch.setenv("LUNGXRAY_WEIGHTS", "env.pt")
+    monkeypatch.setenv("LUNGXRAY_HF_REPO", "user/repo")
+    monkeypatch.setenv("LUNGXRAY_HF_FILENAME", "model.pt")
+    assert bundle_source(config, root=tmp_path) == ("env.pt", "user/repo", "model.pt")
+    assert bundle_source(config, weights="cli.pt")[0] == "cli.pt"  # explicit beats env

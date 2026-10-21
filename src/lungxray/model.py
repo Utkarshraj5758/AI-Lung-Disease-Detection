@@ -7,15 +7,19 @@ holds only plain Python types so bundles load with ``torch.load(weights_only=Tru
 from __future__ import annotations
 
 import datetime as dt
+import os
 import subprocess
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 from torch import nn
 from torchvision import models
+
+if TYPE_CHECKING:
+    from lungxray.config import Config
 
 BUNDLE_FORMAT_VERSION = 1
 REQUIRED_META_KEYS = (
@@ -138,6 +142,29 @@ def load_bundle(
     model.load_state_dict(payload["state_dict"])
     model.to(device).eval()
     return model, meta
+
+
+def bundle_source(
+    config: Config, weights: str | Path | None = None, root: str | Path | None = None
+) -> tuple[str, str, str]:
+    """Where the app and API get their bundle: ``(local_path, hf_repo_id, hf_filename)``.
+
+    The local path is ``weights``, else ``$LUNGXRAY_WEIGHTS``, else ``<artifacts_dir>/best.pt``
+    (resolved against ``root`` when relative). ``$LUNGXRAY_HF_REPO`` and
+    ``$LUNGXRAY_HF_FILENAME`` override ``app.hf_repo_id`` / ``app.hf_filename``. Pass the
+    result to :func:`resolve_bundle`.
+    """
+    local = weights or os.environ.get("LUNGXRAY_WEIGHTS")
+    if not local:
+        artifacts = Path(config.paths.artifacts_dir)
+        if root is not None and not artifacts.is_absolute():
+            artifacts = Path(root) / artifacts
+        local = artifacts / "best.pt"
+    return (
+        str(local),
+        os.environ.get("LUNGXRAY_HF_REPO", config.app.hf_repo_id),
+        os.environ.get("LUNGXRAY_HF_FILENAME", config.app.hf_filename),
+    )
 
 
 def resolve_bundle(

@@ -78,10 +78,8 @@ def load_image(
         image = Image.open(io.BytesIO(data))
         image.load()
     except (UnidentifiedImageError, OSError) as e:
-        name = f" {filename!r}" if filename else ""
-        raise ValueError(
-            f"Unsupported or corrupt image{name}. Use a PNG, JPEG or DICOM file."
-        ) from e
+        # No file name in the message: it is logged, and names can identify patients.
+        raise ValueError("Unsupported or corrupt image. Use a PNG, JPEG or DICOM file.") from e
     return ImageOps.exif_transpose(image)
 
 

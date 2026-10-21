@@ -18,7 +18,6 @@ import hashlib
 import io
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -28,11 +27,12 @@ import streamlit as st
 from PIL import Image
 from streamlit.errors import StreamlitAPIException
 
+from lungxray import configure_logging
 from lungxray.config import Config, load_config
 from lungxray.data import to_rgb
 from lungxray.gradcam import overlay
 from lungxray.inference import Prediction, Predictor, load_image, output_summary
-from lungxray.model import resolve_bundle
+from lungxray.model import bundle_source, resolve_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "configs" / "default.yaml"
@@ -56,7 +56,7 @@ log = logging.getLogger("lungxray.app")
 
 def main() -> None:
     st.set_page_config(page_title="Chest X-ray pneumonia classifier (research)", layout="wide")
-    _configure_logging()
+    configure_logging()
     st.title("Chest X-ray pneumonia classifier")
     st.warning(DISCLAIMER, icon="⚠️")
     st.caption(PRIVACY)
@@ -133,13 +133,7 @@ def _bundle_location(config: Config) -> tuple[str, str, str]:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--weights")
     args, _ = parser.parse_known_args(sys.argv[1:])
-    local = args.weights or os.environ.get("LUNGXRAY_WEIGHTS")
-    if not local:
-        artifacts = Path(config.paths.artifacts_dir)
-        local = (artifacts if artifacts.is_absolute() else ROOT / artifacts) / "best.pt"
-    hf_repo_id = os.environ.get("LUNGXRAY_HF_REPO", config.app.hf_repo_id)
-    hf_filename = os.environ.get("LUNGXRAY_HF_FILENAME", config.app.hf_filename)
-    return str(local), hf_repo_id, hf_filename
+    return bundle_source(config, weights=args.weights, root=ROOT)
 
 
 def _sidebar(predictor: Predictor, config: Config) -> tuple[float, bool]:
@@ -327,15 +321,6 @@ def _pct(value: float | None) -> str:
 
 def _num(value: float | None) -> str:
     return f"{value:.3f}" if value is not None else "n/a"
-
-
-def _configure_logging() -> None:
-    package_log = logging.getLogger("lungxray")
-    if not package_log.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        package_log.addHandler(handler)
-        package_log.setLevel(logging.INFO)
 
 
 if __name__ == "__main__":
