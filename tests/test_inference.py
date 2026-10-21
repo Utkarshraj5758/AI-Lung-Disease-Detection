@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from lungxray.inference import Predictor, load_image, output_summary
+from lungxray.inference import Predictor, load_image, logit, output_summary
 
 
 def test_fixture_model_depends_on_input(predictor, sample_image, constant_image, colour_image):
@@ -34,6 +34,35 @@ def test_threshold_logic_and_borderline(predictor, sample_image):
     assert not predictor.predict(sample_image, threshold=far).borderline
     with pytest.raises(ValueError, match="threshold"):
         predictor.predict(sample_image, threshold=1.5)
+
+
+@pytest.mark.parametrize(
+    "prob, threshold, borderline",
+    [
+        # At a 0.5 threshold the log-odds margin is exactly the 0.40-0.60 band.
+        (0.59, 0.5, True),
+        (0.41, 0.5, True),
+        (0.61, 0.5, False),
+        (0.39, 0.5, False),
+        # At a high threshold the band narrows near 1: a near-certain output is not borderline.
+        (0.9998, 0.938, False),
+        (0.95, 0.938, True),
+        (0.92, 0.938, True),
+        (0.85, 0.938, False),
+        (0.0, 0.0, True),  # degenerate ends are clipped, not NaN
+    ],
+)
+def test_borderline_uses_a_log_odds_margin(predictor, prob, threshold, borderline):
+    assert predictor.prediction_from_probs(prob, prob, threshold).borderline is borderline
+
+
+def test_borderline_band(predictor):
+    low, high = predictor.borderline_band(0.5)
+    assert low == pytest.approx(0.4) and high == pytest.approx(0.6)
+    low, high = predictor.borderline_band(0.938)
+    assert 0.90 < low < 0.938 < high < 0.96
+    assert (high - 0.938) < (0.938 - low)  # asymmetric in probability, symmetric in log-odds
+    assert logit(high) - logit(0.938) == pytest.approx(logit(0.938) - logit(low))
 
 
 def test_temperature_and_threshold_come_from_meta(bundle_path, sample_image):

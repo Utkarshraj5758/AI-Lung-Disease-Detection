@@ -2,6 +2,7 @@
 
 import io
 import logging
+import re
 from pathlib import Path
 
 import numpy as np
@@ -126,3 +127,14 @@ def test_sidebar_reads_metrics_from_the_bundle(monkeypatch, tmp_path, bundle_pat
     assert "AUROC 0.912" in sidebar and "sensitivity 80.0%" in sidebar
     assert any("not seen in training: sensitivity 60.0%" in c.value for c in at.sidebar.caption)
     assert any("95%" in m.value and "0.900" in m.value for m in at.sidebar.markdown)
+
+
+def test_borderline_warning_names_the_band(app, sample_path):
+    _upload(app, "sample.png", sample_path.read_bytes(), "image/png")
+    app.toggle[0].set_value(True).run()
+    threshold = round(float(_metric(app, "P(pneumonia)").rstrip("%")) / 100, 3)
+    _slider(app, "Threshold on P(pneumonia)").set_value(threshold).run()
+    warnings = [w.value for w in app.warning if w.value.startswith("Borderline")]
+    assert warnings, [w.value for w in app.warning]
+    low, high = (float(x) / 100 for x in re.findall(r"([\d.]+)%", warnings[0]))
+    assert low < threshold < high

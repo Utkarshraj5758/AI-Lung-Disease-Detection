@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import io
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from os import PathLike
@@ -25,7 +26,11 @@ DISCLAIMER = (
     "Research and education use only; not a medical device. Trained on pediatric chest "
     "X-rays; not validated for adults or for clinical use."
 )
-DEFAULT_BORDERLINE_MARGIN = 0.10
+# Borderline = within this many log-odds of the threshold. log(0.6 / 0.4) gives exactly the
+# 0.40-0.60 band at a 0.5 threshold; unlike a fixed probability margin, the band narrows
+# towards 0 and 1, so a near-certain output is never called borderline under a high threshold.
+DEFAULT_BORDERLINE_LOGIT_MARGIN = math.log(0.6 / 0.4)
+_PROB_EPS = 1e-12
 _DICOM_SUFFIXES = {".dcm", ".dicom"}
 # Basic input sanity check limits (0-255 scale). Warnings only; not an X-ray detector.
 _MIN_GREY_STD = 8.0
@@ -38,7 +43,16 @@ class Prediction:
     prob_calibrated: float  # softmax of logits / temperature; the threshold applies to this
     label: str
     threshold: float
-    borderline: bool  # |prob_calibrated - threshold| < borderline margin
+    borderline: bool  # |logit(prob_calibrated) - logit(threshold)| < borderline logit margin
+
+
+def logit(p: float) -> float:
+    p = min(max(p, _PROB_EPS), 1.0 - _PROB_EPS)
+    return math.log(p / (1.0 - p))
+
+
+def sigmoid(z: float) -> float:
+    return 1.0 / (1.0 + math.exp(-z))
 
 
 def load_image(
@@ -112,7 +126,7 @@ class Predictor:
         self,
         bundle_path: str | PathLike[str],
         device: str | torch.device | None = None,
-        borderline_margin: float = DEFAULT_BORDERLINE_MARGIN,
+        borderline_logit_margin: float = DEFAULT_BORDERLINE_LOGIT_MARGIN,
     ) -> None:
         self.device = resolve_device(device)
         self.model, self.meta = load_bundle(bundle_path, self.device)
@@ -123,7 +137,7 @@ class Predictor:
         self.positive_index = self.class_names.index(self.meta["positive_class"])
         self.threshold = float(self.meta["threshold"])
         self.temperature = float(self.meta["temperature"])
-        self.borderline_margin = borderline_margin
+        self.borderline_logit_margin = borderline_logit_margin
         size, resize = int(self.meta["image_size"]), int(self.meta["resize_size"])
         self._transform = build_eval_transform(size, resize, self.meta["mean"], self.meta["std"])
         self._view = build_view_transform(size, resize)
@@ -161,8 +175,13 @@ class Predictor:
             prob_calibrated=prob_calibrated,
             label=self.class_names[self._decide(prob_calibrated, t)],
             threshold=t,
-            borderline=abs(prob_calibrated - t) < self.borderline_margin,
+            borderline=abs(logit(prob_calibrated) - logit(t)) < self.borderline_logit_margin,
         )
+
+    def borderline_band(self, threshold: float | None = None) -> tuple[float, float]:
+        """The open interval of P(pneumonia) values flagged as borderline at a threshold."""
+        z = logit(self._threshold(threshold))
+        return sigmoid(z - self.borderline_logit_margin), sigmoid(z + self.borderline_logit_margin)
 
     def predict(self, image: Image.Image, threshold: float | None = None) -> Prediction:
         return self.prediction_from_probs(*self.probabilities(image), threshold)

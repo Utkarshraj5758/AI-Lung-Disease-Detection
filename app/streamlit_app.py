@@ -246,9 +246,10 @@ def _results(
         else "Bundle default, tuned on the validation set.",
     )
     if prediction.borderline:
+        low, high = predictor.borderline_band(prediction.threshold)
         st.warning(
-            f"Borderline: P(pneumonia) is within {predictor.borderline_margin:.2f} of the "
-            "threshold, so this output is especially uncertain.",
+            f"Borderline: P(pneumonia) is close to the threshold (the borderline band is "
+            f"{low:.1%} to {high:.1%}), so this output is especially uncertain.",
             icon="⚠️",
         )
     for warning in result["warnings"]:
