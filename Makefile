@@ -6,7 +6,7 @@ PIP := $(PYTHON) -m pip
 IMAGE ?= lungxray
 ARGS ?=
 
-.PHONY: help setup lint format test train evaluate app api docker docker-api clean
+.PHONY: help setup lint format test train evaluate docs app api docker docker-api clean
 
 help:  ## list the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-11s %s\n", $$1, $$2}'
@@ -31,8 +31,12 @@ test:  ## run the tests with coverage (no dataset, GPU or network needed)
 train:  ## two-stage fine-tune + calibration -> artifacts/best.pt (needs dataset/)
 	$(PYTHON) -m lungxray.train $(ARGS)
 
-evaluate:  ## test-set metrics with CIs and plots -> reports/
+evaluate:  ## test-set metrics with CIs and plots -> reports/, then refresh the docs
 	$(PYTHON) -m lungxray.evaluate $(ARGS)
+	$(PYTHON) scripts/render_results.py
+
+docs:  ## rewrite the results in README.md and docs/MODEL_CARD.md from reports/metrics.json
+	$(PYTHON) scripts/render_results.py
 
 app:  ## Streamlit app on http://localhost:8501
 	$(PYTHON) -m streamlit run app/streamlit_app.py $(ARGS)

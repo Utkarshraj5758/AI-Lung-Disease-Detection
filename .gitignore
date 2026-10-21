@@ -27,3 +27,7 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build outputs (e.g. scripts/build_space.py)
+build/
+dist/
