@@ -1,0 +1,12 @@
+# Whitelist: only what the image needs. Data, weights, venvs and runs never enter the context.
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!src
+!configs
+!app
+!api
+**/__pycache__
+**/*.pyc
+**/*.egg-info

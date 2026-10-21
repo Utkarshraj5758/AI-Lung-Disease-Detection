@@ -3,6 +3,7 @@ from io import BytesIO
 
 import numpy as np
 import pytest
+import torch
 from PIL import Image
 
 from lungxray.inference import Predictor, load_image, logit, output_summary
@@ -161,3 +162,15 @@ def test_model_version_and_output_summary(predictor, sample_image):
     assert summary["model_version"] == predictor.model_version
     assert "not a medical device" in summary["disclaimer"]
     json.dumps(summary)  # plain types only; no file name or pixels
+
+
+def test_class_probabilities_sum_to_one(predictor, sample_image):
+    with torch.no_grad():
+        logits = predictor.model(predictor.preprocess(sample_image))[0]
+    probs = torch.softmax(logits, dim=0)
+    assert float(probs.sum()) == pytest.approx(1.0, abs=1e-6)
+    raw, calibrated = predictor.probabilities(sample_image)
+    assert raw == pytest.approx(float(probs[predictor.positive_index]), abs=1e-6)
+    scaled = torch.softmax(logits / predictor.temperature, dim=0)
+    assert float(scaled.sum()) == pytest.approx(1.0, abs=1e-6)
+    assert calibrated == pytest.approx(float(scaled[predictor.positive_index]), abs=1e-6)

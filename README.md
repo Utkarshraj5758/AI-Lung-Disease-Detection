@@ -59,3 +59,21 @@ The app takes its bundle from `-- --weights PATH`, `$LUNGXRAY_WEIGHTS` or
 `artifacts/best.pt`; if none exists it downloads `best.pt` from the Hugging Face model repo
 named in `$LUNGXRAY_HF_REPO` (or `app.hf_repo_id` in the config). The old `lung_model.pth`
 is not a bundle and is no longer used.
+
+### Make targets
+
+With GNU make (Linux, macOS, or Windows with make installed): `make setup`, `make lint`,
+`make test`, `make train`, `make evaluate`, `make app`, `make api`, `make docker`
+(`make help` lists them). `make setup TORCH_INDEX=https://download.pytorch.org/whl/cpu`
+installs CPU-only PyTorch first; pass extra options with `ARGS="..."`.
+
+### Docker
+
+```bash
+docker build -t lungxray .
+docker run -p 8501:8501 -v "$PWD/artifacts:/app/artifacts:ro" lungxray
+```
+
+The image is CPU-only and runs as a non-root user. It contains no weights: mount a bundle
+at `/app/artifacts/best.pt` or pass `-e LUNGXRAY_HF_REPO=...`. For the API, build with
+`--build-arg SERVICE=api` or run with `-e LUNGXRAY_SERVICE=api -p 8000:8000`.

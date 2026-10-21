@@ -85,33 +85,6 @@ def test_patient_id(name, label, expected):
     assert patient_id(name, label) == expected
 
 
-LAYOUT = {
-    "train": {
-        "NORMAL": ["IM-0001-0001.jpeg", "IM-0002-0001.jpeg"],
-        "PNEUMONIA": ["person1_bacteria_1.jpeg", "person2_virus_2.jpeg"],
-    },
-    "val": {
-        "NORMAL": ["IM-0002-0001-0002.jpeg"],  # patient IM-0002 is also in train
-        "PNEUMONIA": ["person3_bacteria_3.jpeg"],
-    },
-    "test": {
-        "NORMAL": ["IM-0003-0001.jpeg"],
-        "PNEUMONIA": ["person1_virus_9.jpeg", "person3_virus_4.jpeg"],  # in train / in val
-    },
-}
-
-
-@pytest.fixture
-def tiny_dataset(tmp_path):
-    for split, classes in LAYOUT.items():
-        for label, names in classes.items():
-            folder = tmp_path / split / label
-            folder.mkdir(parents=True)
-            for name in names:
-                Image.new("L", (40, 30), 100).save(folder / name, format="JPEG")
-    return tmp_path
-
-
 def test_scan_and_patient_overlap(tiny_dataset):
     records = scan_dataset(tiny_dataset)
     assert len(records) == 9 and all(r.patient for r in records)

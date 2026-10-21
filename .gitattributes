@@ -1,0 +1,5 @@
+# Keep LF where CRLF would break tools (make recipes, shell, container builds).
+Makefile text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.sh text eol=lf

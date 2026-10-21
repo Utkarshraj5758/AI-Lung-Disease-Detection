@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "ruff", "httpx"]
+dev = ["pytest", "pytest-cov", "ruff>=0.17,<0.18", "httpx"]  # ruff pinned: formatting is checked in CI
 api = ["fastapi", "uvicorn[standard]", "python-multipart"]
 train = ["tensorboard"]
 

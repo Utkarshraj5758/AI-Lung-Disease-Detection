@@ -59,6 +59,34 @@ def tiny_image() -> Image.Image:
     return Image.fromarray(rng.integers(0, 255, size=(64, 64), dtype=np.uint8))
 
 
+# A tiny on-disk dataset in the Kermany layout, with known patient overlaps.
+TINY_LAYOUT = {
+    "train": {
+        "NORMAL": ["IM-0001-0001.jpeg", "IM-0002-0001.jpeg"],
+        "PNEUMONIA": ["person1_bacteria_1.jpeg", "person2_virus_2.jpeg"],
+    },
+    "val": {
+        "NORMAL": ["IM-0002-0001-0002.jpeg"],  # patient IM-0002 is also in train
+        "PNEUMONIA": ["person3_bacteria_3.jpeg"],
+    },
+    "test": {
+        "NORMAL": ["IM-0003-0001.jpeg"],
+        "PNEUMONIA": ["person1_virus_9.jpeg", "person3_virus_4.jpeg"],  # in train / in val
+    },
+}
+
+
+@pytest.fixture
+def tiny_dataset(tmp_path):
+    for split, classes in TINY_LAYOUT.items():
+        for label, names in classes.items():
+            folder = tmp_path / split / label
+            folder.mkdir(parents=True)
+            for name in names:
+                Image.new("L", (40, 30), 100).save(folder / name, format="JPEG")
+    return tmp_path
+
+
 @pytest.fixture
 def make_dicom():
     """Factory: uncompressed greyscale DICOM bytes from (rows, cols) or (frames, rows, cols)."""
