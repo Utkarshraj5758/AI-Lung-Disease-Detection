@@ -33,7 +33,7 @@ def dicom_to_pil(file: str | PathLike[str] | BinaryIO | bytes) -> Image.Image:
     try:
         ds = pydicom.dcmread(file)
     except InvalidDicomError as e:
-        raise ValueError(f"Not a valid DICOM file: {e}") from e
+        raise ValueError("Not a valid DICOM file (no DICOM header found).") from e
     if "PixelData" not in ds:
         raise ValueError("DICOM file has no pixel data")
 
@@ -47,7 +47,7 @@ def dicom_to_pil(file: str | PathLike[str] | BinaryIO | bytes) -> Image.Image:
                 f"Cannot decode compressed DICOM pixel data ({syntax.name}). "
                 f"Install a decoder plugin, e.g. `{_DECODER_HINT}`."
             ) from e
-        raise ValueError(f"Could not decode DICOM pixel data: {e}") from e
+        raise ValueError("Could not decode the DICOM pixel data.") from e
 
     if int(ds.get("NumberOfFrames", 1) or 1) > 1:
         arr = arr[0]

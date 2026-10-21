@@ -9,6 +9,7 @@ opencv-python-headless
 scikit-learn
 matplotlib
 streamlit>=1.40
+huggingface_hub
 pydicom>=3.0
 pyyaml
 tqdm

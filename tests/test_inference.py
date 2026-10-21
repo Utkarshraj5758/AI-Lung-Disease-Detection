@@ -1,10 +1,11 @@
+import json
 from io import BytesIO
 
 import numpy as np
 import pytest
 from PIL import Image
 
-from lungxray.inference import Predictor, load_image
+from lungxray.inference import Predictor, load_image, output_summary
 
 
 def test_fixture_model_depends_on_input(predictor, sample_image, constant_image, colour_image):
@@ -106,3 +107,28 @@ def test_load_image_16_bit_png_is_scaled(tmp_path, predictor):
 def test_load_image_garbage_raises():
     with pytest.raises(ValueError, match="Unsupported or corrupt image"):
         load_image(b"\x00" * 300, filename="x.png")
+
+
+def test_prediction_from_probs_matches_predict(predictor, sample_image):
+    raw, calibrated = predictor.probabilities(sample_image)
+    assert predictor.prediction_from_probs(raw, calibrated) == predictor.predict(sample_image)
+    assert predictor.prediction_from_probs(raw, 0.6, threshold=0.55).label == "PNEUMONIA"
+
+
+def test_model_version_and_output_summary(predictor, sample_image):
+    name, digest = predictor.model_version.rsplit("-", 1)
+    assert name == "efficientnet_b0" and len(digest) == 12
+    prediction = predictor.predict(sample_image)
+    summary = output_summary(
+        predictor,
+        prediction,
+        file_sha256="ab" * 32,
+        input_warnings=["low resolution"],
+        threshold_overridden=True,
+    )
+    assert summary["label"] == prediction.label
+    assert summary["prob_pneumonia"] == prediction.prob_calibrated
+    assert summary["threshold_source"] == "user override"
+    assert summary["model_version"] == predictor.model_version
+    assert "not a medical device" in summary["disclaimer"]
+    json.dumps(summary)  # plain types only; no file name or pixels

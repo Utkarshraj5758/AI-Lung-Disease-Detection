@@ -7,6 +7,7 @@ from lungxray.model import (
     build_meta,
     build_model,
     load_bundle,
+    resolve_bundle,
     save_bundle,
 )
 
@@ -107,3 +108,37 @@ def test_positive_class_must_be_a_class():
             mean=(0, 0, 0),
             std=(1, 1, 1),
         )
+
+
+def test_resolve_bundle_prefers_the_local_file(bundle_path):
+    assert resolve_bundle(bundle_path, "user/repo") == bundle_path
+
+
+def test_resolve_bundle_without_local_file_or_repo_explains_setup(tmp_path):
+    with pytest.raises(FileNotFoundError, match="LUNGXRAY_HF_REPO"):
+        resolve_bundle(tmp_path / "missing.pt")
+
+
+def test_resolve_bundle_downloads_from_the_hub(monkeypatch, tmp_path, bundle_path):
+    import huggingface_hub
+
+    calls = []
+
+    def fake_download(repo_id, filename, **kwargs):
+        calls.append((repo_id, filename))
+        return str(bundle_path)
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_download)
+    assert resolve_bundle(tmp_path / "missing.pt", "user/repo", "best.pt") == bundle_path
+    assert calls == [("user/repo", "best.pt")]
+
+
+def test_resolve_bundle_reports_download_failures(monkeypatch, tmp_path):
+    import huggingface_hub
+
+    def offline(**kwargs):
+        raise OSError("offline")
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", offline)
+    with pytest.raises(FileNotFoundError, match="user/repo"):
+        resolve_bundle(tmp_path / "missing.pt", "user/repo")

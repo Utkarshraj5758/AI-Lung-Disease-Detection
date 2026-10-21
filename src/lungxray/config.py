@@ -72,12 +72,20 @@ class EvalConfig:
 
 
 @dataclass(frozen=True)
+class AppConfig:
+    hf_repo_id: str
+    hf_filename: str
+    model_card_url: str
+
+
+@dataclass(frozen=True)
 class Config:
     paths: PathsConfig
     data: DataConfig
     model: ModelConfig
     train: TrainConfig
     eval: EvalConfig
+    app: AppConfig
 
     def to_dict(self) -> dict[str, Any]:
         """Plain nested dict (e.g. for storing in a model bundle)."""

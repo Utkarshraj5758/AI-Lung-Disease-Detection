@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
 import io
+from collections.abc import Sequence
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
@@ -18,6 +21,10 @@ from lungxray.dicom import dicom_to_pil
 from lungxray.gradcam import grad_cam
 from lungxray.model import load_bundle, resolve_device
 
+DISCLAIMER = (
+    "Research and education use only; not a medical device. Trained on pediatric chest "
+    "X-rays; not validated for adults or for clinical use."
+)
 DEFAULT_BORDERLINE_MARGIN = 0.10
 _DICOM_SUFFIXES = {".dcm", ".dicom"}
 # Basic input sanity check limits (0-255 scale). Warnings only; not an X-ray detector.
@@ -58,8 +65,40 @@ def load_image(
         image.load()
     except (UnidentifiedImageError, OSError) as e:
         name = f" {filename!r}" if filename else ""
-        raise ValueError(f"Unsupported or corrupt image{name}: {e}") from e
+        raise ValueError(
+            f"Unsupported or corrupt image{name}. Use a PNG, JPEG or DICOM file."
+        ) from e
     return ImageOps.exif_transpose(image)
+
+
+def output_summary(
+    predictor: Predictor,
+    prediction: Prediction,
+    *,
+    file_sha256: str,
+    input_warnings: Sequence[str] = (),
+    threshold_overridden: bool = False,
+) -> dict[str, Any]:
+    """Plain-type record of one prediction (no file name or pixel data, only the file hash)."""
+    return {
+        "file_sha256": file_sha256,
+        "label": prediction.label,
+        "prob_pneumonia": prediction.prob_calibrated,
+        "prob_pneumonia_raw": prediction.prob_pneumonia,
+        "temperature": predictor.temperature,
+        "threshold": prediction.threshold,
+        "threshold_source": "user override" if threshold_overridden else "bundle default",
+        "borderline": prediction.borderline,
+        "input_warnings": list(input_warnings),
+        "model_version": predictor.model_version,
+        "model": {
+            "name": predictor.meta["model_name"],
+            "git_commit": predictor.meta["git_commit"],
+            "created_at": predictor.meta["created_at"],
+        },
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "disclaimer": DISCLAIMER,
+    }
 
 
 class Predictor:
@@ -77,6 +116,7 @@ class Predictor:
     ) -> None:
         self.device = resolve_device(device)
         self.model, self.meta = load_bundle(bundle_path, self.device)
+        self.bundle_sha256 = hashlib.sha256(Path(bundle_path).read_bytes()).hexdigest()
         self.class_names: list[str] = list(self.meta["class_names"])
         if len(self.class_names) != 2:
             raise ValueError(f"Predictor needs a binary model, got classes {self.class_names}")
@@ -89,9 +129,14 @@ class Predictor:
         self._view = build_view_transform(size, resize)
 
     @property
+    def model_version(self) -> str:
+        """Model name plus the first 12 hex digits of the bundle file's SHA-256."""
+        return f"{self.meta['model_name']}-{self.bundle_sha256[:12]}"
+
+    @property
     def model_info(self) -> dict[str, Any]:
         keys = ("model_name", "git_commit", "created_at", "threshold", "temperature")
-        return {key: self.meta[key] for key in keys}
+        return {"model_version": self.model_version, **{key: self.meta[key] for key in keys}}
 
     def preprocess(self, image: Image.Image) -> torch.Tensor:
         return self._transform(image).unsqueeze(0).to(self.device)
@@ -100,19 +145,27 @@ class Predictor:
         """The RGB uint8 crop the model sees; Grad-CAM maps from :meth:`explain` align with it."""
         return np.asarray(self._view(image), dtype=np.uint8)
 
-    def predict(self, image: Image.Image, threshold: float | None = None) -> Prediction:
-        t = self._threshold(threshold)
+    def probabilities(self, image: Image.Image) -> tuple[float, float]:
+        """``(raw, temperature-scaled)`` P(positive class) for one image."""
         with torch.no_grad():
             logits = self.model(self.preprocess(image))[0].float()
-        prob_raw = float(F.softmax(logits, dim=0)[self.positive_index])
-        prob_cal = self._calibrated_prob(logits)
+        return float(F.softmax(logits, dim=0)[self.positive_index]), self._calibrated_prob(logits)
+
+    def prediction_from_probs(
+        self, prob_raw: float, prob_calibrated: float, threshold: float | None = None
+    ) -> Prediction:
+        """Apply the decision rule (``prob_calibrated >= threshold``) without running the model."""
+        t = self._threshold(threshold)
         return Prediction(
             prob_pneumonia=prob_raw,
-            prob_calibrated=prob_cal,
-            label=self.class_names[self._decide(prob_cal, t)],
+            prob_calibrated=prob_calibrated,
+            label=self.class_names[self._decide(prob_calibrated, t)],
             threshold=t,
-            borderline=abs(prob_cal - t) < self.borderline_margin,
+            borderline=abs(prob_calibrated - t) < self.borderline_margin,
         )
+
+    def predict(self, image: Image.Image, threshold: float | None = None) -> Prediction:
+        return self.prediction_from_probs(*self.probabilities(image), threshold)
 
     def explain(
         self,

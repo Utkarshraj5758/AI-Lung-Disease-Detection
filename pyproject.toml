@@ -20,6 +20,7 @@ dependencies = [
     "scikit-learn",
     "matplotlib",
     "streamlit>=1.40",
+    "huggingface_hub",
     "pydicom>=3.0",
     "pyyaml",
     "tqdm",
@@ -42,9 +43,8 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-# app.py/train.py: legacy root scripts, replaced by src/lungxray in Phase 3 (train) and
-# Phase 4 (app). PLAN.md: its code snippets are aligned by hand.
-extend-exclude = ["app.py", "train.py", "PLAN.md"]
+# PLAN.md: its code snippets are aligned by hand.
+extend-exclude = ["PLAN.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]

@@ -140,6 +140,34 @@ def load_bundle(
     return model, meta
 
 
+def resolve_bundle(
+    local_path: str | Path, hf_repo_id: str = "", hf_filename: str = "best.pt"
+) -> Path:
+    """The local bundle if it exists, else ``hf_filename`` downloaded from ``hf_repo_id``.
+
+    Raises FileNotFoundError with setup instructions when neither is available.
+    """
+    local = Path(local_path)
+    if local.is_file():
+        return local
+    if hf_repo_id:
+        from huggingface_hub import hf_hub_download
+
+        try:
+            return Path(hf_hub_download(repo_id=hf_repo_id, filename=hf_filename))
+        except Exception as e:
+            raise FileNotFoundError(
+                f"No model bundle at {local}, and downloading {hf_filename!r} from the "
+                f"Hugging Face repo {hf_repo_id!r} failed ({type(e).__name__}). Check the repo "
+                "id and network access, or place a bundle at the local path."
+            ) from e
+    raise FileNotFoundError(
+        f"No model bundle at {local}. Train one with `python -m lungxray.train`, point "
+        "LUNGXRAY_WEIGHTS at an existing bundle, or set LUNGXRAY_HF_REPO (or app.hf_repo_id "
+        f"in configs/default.yaml) to a Hugging Face model repo that contains {hf_filename!r}."
+    )
+
+
 def resolve_device(device: str | torch.device | None = None) -> torch.device:
     """The requested device, or CUDA when available, else CPU."""
     return torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))

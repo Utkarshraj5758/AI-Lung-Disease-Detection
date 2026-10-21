@@ -228,7 +228,9 @@ def set_trainable(model: nn.Module, unfreeze_blocks: int) -> list[nn.Module]:
     return blocks[:n_frozen]
 
 
-def warmup_cosine(optimizer: torch.optim.Optimizer, warmup_steps: int, total_steps: int) -> LambdaLR:
+def warmup_cosine(
+    optimizer: torch.optim.Optimizer, warmup_steps: int, total_steps: int
+) -> LambdaLR:
     """Per-step LR factor: linear warmup to 1, then cosine decay to 0 at ``total_steps``."""
 
     def factor(step: int) -> float:

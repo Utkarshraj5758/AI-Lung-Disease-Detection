@@ -37,3 +37,10 @@ eval:
   target_sensitivity: 0.95   # threshold = highest one reaching this sensitivity on val
   ece_bins: 15
   bootstrap_resamples: 1000
+
+app:
+  # The app loads <artifacts_dir>/best.pt (or $LUNGXRAY_WEIGHTS). If that file is missing it
+  # downloads hf_filename from this Hugging Face model repo ($LUNGXRAY_HF_REPO overrides).
+  hf_repo_id: ""             # e.g. your-user/lungxray-efficientnet-b0; empty = no download
+  hf_filename: best.pt
+  model_card_url: https://github.com/Utkarshraj5758/AI-Lung-Disease-Detection/blob/main/docs/MODEL_CARD.md

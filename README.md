@@ -40,6 +40,7 @@ pip install -e .[dev]
 python scripts/check_dataset.py     # counts, image sizes, patient overlap between splits
 python -m lungxray.train            # two-stage fine-tune + calibration -> artifacts/best.pt
 python -m lungxray.evaluate         # test metrics with 95% CIs and plots -> reports/
+streamlit run app/streamlit_app.py  # web app (uses artifacts/best.pt)
 lungxray predict image.png --weights artifacts/best.pt --cam overlay.png   # add --json for JSON
 pytest -q                           # tests (no dataset or GPU needed)
 ```
@@ -47,5 +48,9 @@ pytest -q                           # tests (no dataset or GPU needed)
 Settings live in `configs/default.yaml`; override any of them with
 `--set section.key=value`. `--fast-dev-run` runs train/evaluate on synthetic data in
 seconds. Install the `[train]` extra for TensorBoard logs. `python scripts/make_dummy_bundle.py`
-writes a random-init bundle for smoke tests. The root `app.py` is the legacy app (it uses
-`lung_model.pth`) and is replaced in a later phase.
+writes a random-init bundle for smoke tests.
+
+The app takes its bundle from `-- --weights PATH`, `$LUNGXRAY_WEIGHTS` or
+`artifacts/best.pt`; if none exists it downloads `best.pt` from the Hugging Face model repo
+named in `$LUNGXRAY_HF_REPO` (or `app.hf_repo_id` in the config). The old `lung_model.pth`
+is not a bundle and is no longer used.
